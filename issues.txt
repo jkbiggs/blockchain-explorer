@@ -1,0 +1,26 @@
+// ISSUES - TODO: figure out how to deal with "token": as0q,
+/*
+    // async or nah?
+    
+    fs.readFile('./db/testData.json', (err, data) => {  
+        if (err) throw err;
+        let log = JSON.parse(data);
+        console.log(log);
+    });
+*/ 
+
+    getAddressInfo() {
+        this.app.get("/address/:address", (req, res) => {
+            let address = req.params.address;
+            if (!address || address == "" || !this.addresses[address]) {
+                res.status(404).json({
+                    "error" : {    
+                        "status": 404,
+                        "message": "Address not found."   
+                    }
+                });
+            } else {
+                res.send(this.addresses[address]);
+            }
+        })
+    }

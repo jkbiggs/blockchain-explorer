@@ -1,126 +1,167 @@
-//const SHA256 = require('crypto-js/sha256');
-//const BlockClass = require('./Block.js');
-const db = require('./db/db');
+const AddressClass = require('./Address.js');
+const Address = AddressClass.Address;
+const TokenClass = require('./Token.js');
+const Token = TokenClass.Token;
+const TransactionClass = require('./Transaction.js');
+const Transaction = TransactionClass.Transaction;
 
-/**
- * Controller Definition to encapsulate routes to work with blocks
- */
+
+const db = require('./db/db');
+const fs = require('fs');
+
+
 class Controller {
 
-    /**
-     * Constructor to create a new BlockController, you need to initialize here all your endpoints
-     * @param {*} app 
-     */
     constructor(app) {
         this.app = app;
-        this.blocks = [];
-        this.getTodos();
-        //this.initializeMockData();
-        //this.getBlockByIndex();
-        //this.postNewBlock();
+        this.addresses = [];  //associative array of addresses with tokens
+        this.tokens = [];
+        this.processDataFile();
+        this.getTokenBalance();
+        //this.getTokenAverage();
+        //this.getTokenMedian();
+        //this.getAccountHighestBalance();
+        //this.getAccountMostTransfers();
     }
+    // TODO: break out all logic?
+    processDataFile() {
+        // synchronously read data from data file
+        let data = fs.readFileSync('./db/testData.json');  
+        let logs = JSON.parse(data);
+        let i = 0;
+        logs.forEach(log => {
+            // 1. create a Transaction from the log record
+            let tx = new Transaction(log);
+            let token = tx.token;
+            let recipient = tx.recipient;
+            let sender = tx.sender;
+            
+            // 2. recipient address doesn't exist - create a new one and add tx
+            if (!this.addresses[recipient]) {
+                this.addresses[recipient] = new Address(tx);
+            }
+                
+            this.addresses[recipient].addTransaction(tx);
+            
+            // 3. if sender is isn't null, we need to add tx to sender too
+            if (sender) {
+                if(!this.addresses[sender]) {
+                    this.addresses[sender] = new Address(tx);
+                }
+                this.addresses[sender].addTransaction(tx);
+            }  
+            // 4. token doesn't exist - create a new one and add tx
+            if (!this.tokens[token]) {
+                this.tokens[token] = new Token(tx);
+            }
 
-    getTodos(){
-        // get all todos
-        this.app.get('/api/v1/todos', (req, res) => {
-            res.status(200).send({
-            success: 'true',
-            message: 'todos retrieved successfully',
-            todos: db
-            })
+            this.tokens[token].addTransaction(tx);
+
         });
+        
+        console.log(this.addresses);
+        console.log("address getTransactions: " + this.addresses['0x3cd3daa88db6d1ac2735edccdf7eb96cba9f9a48'].getTransactions());
+        console.log("getBalanceByTimestamp: " + this.addresses['0x3cd3daa88db6d1ac2735edccdf7eb96cba9f9a48'].getBalanceByTimestamp('0xd5524179cb7ae012f5b642c1d6d700bbaa76b96b', 1534373664));
+        
+        console.log(this.tokens);
+        console.log("getAverageTxAmount: " + this.tokens['0xd5524179cb7ae012f5b642c1d6d700bbaa76b96b'].getAverageTxAmount());
+        console.log("getMedianTxAmount: " +  this.tokens['0xd5524179cb7ae012f5b642c1d6d700bbaa76b96b'].getMedianTxAmount());
+        
     }
-    
-    /*
-        TODO: add endpoints for the following:
 
-        /getTokenBalance/:token
-        The balance of an account for a token at a given time
-
-        /getTokenAverage/:token
-        the average token transfer amount
-
-        /getTokenMedian/:token
-        the median token transfer amount
-
-        /getAccountHighestBalance
-        the account with the highest balance of a token at a given time
-
-        /getAccountMostTransfers
-        the account whose made the most transfers of a token at a given time
-        TODO: what is meant by given time?
-    */
     /**
-     * GET Endpoint to retrieve a block by index, url: "/block/:index"
+     * GET Endpoint to get an account's token balance at a given time 
+     * url: "/address/{address}/token/{tokenId}/getTokenBalance"
+     * Request body should contain a token id and timeStamp
      */
-    getBlockByIndex() {
-        this.app.get("/block/:index", (req, res) => {
-            let index = req.params.index;
-            if (index < 0 || index >= this.blocks.length) {
+    getTokenBalance() {
+        this.app.get("/address/:address/token/:tokenId/tokenBalance", (req, res) => {
+            let address = req.params.address;
+            let token = req.params.token;
+            let time = req.params.timestamp;
+            if (!address || address == "" || !this.addresses[address]) {
                 res.status(404).json({
                     "error" : {    
                         "status": 404,
-                        "message": "Block not found."   
+                        "message": "Address not found."   
                     }
-                })
+                });
+            } else if (!token || token == "") { //TODO: validate token exists
+                res.status(404).json({
+                    "error" : {    
+                        "status": 404,
+                        "message": "Token not found."   
+                    }
+                });
+            } else if (!time || time == "") {
+                res.status(404).json({
+                    "error" : {    
+                        "status": 404,
+                        "message": "Time not found."   
+                    }
+                });
             } else {
-                res.send(this.blocks[index]);
-                //TODO: make sure star info is in response
+                res.status(200).send(this.addresses[address].getBalanceByTimestamp(token, time).toString());
             }
         });
     }
 
     /**
-     * POST Endpoint to add a new Block, url: "/block"
-     * Request should contain an address and star
+     * GET Endpoint to get the average transfer amount for a token 
+     * url: "/token/{tokenId}/averageTransferAmount"
+     * Request body should contain a token id and timeStamp
      */
-    postNewBlock() {
-        this.app.post("/block", (req, res) => {
-            if (req.body.address == undefined || req.body.address == "") {
-                res.status(400).json({
-                    "error" : {
-                        "status": 400,
-                        "message": "Empty block address."
+    getAverageTransferAmount() {
+        this.app.get("/token/:token/averageTransferAmount", (req, res) => {
+            let token = req.params.token;
+            if (!token || token == "") { //TODO: validate token exists
+                res.status(404).json({
+                    "error" : {    
+                        "status": 404,
+                        "message": "Token not found."   
                     }
-                })
+                });
             } else {
-                // create a new block from the request's body data
-                let blockAux = new BlockClass.Block(req.body.body);
-                blockAux.height = this.blocks.length;
-                blockAux.hash = SHA256(JSON.stringify(blockAux)).toString();
-                
-                // get the previous blocks and retrieve it's hash
-                if (this.blocks.length > 0) {
-                    let previousBlock = this.blocks[this.blocks.length - 1];
-                    blockAux.previousBlockHash = previousBlock.hash;
-                }
-
-                this.blocks.push(blockAux);
-                res.status(201).send(blockAux);
+                res.status(200).send(this.tokens[token].getAverageTxAmount().toString());
             }
         });
     }
-
-
     /**
-     * Help method to initialized Mock dataset, adds 10 test blocks to the blocks array
+     * GET Endpoint to get the median transfer amount for a token 
+     * url: "/token/{tokenId}/getAverageTransferAmount"
+     * Request body should contain a token id and timeStamp
      */
-    initializeMockData() {
-        if(this.blocks.length === 0){
-            for (let index = 0; index < 10; index++) {
-                let blockAux = new BlockClass.Block(`Test Data #${index}`);
-                blockAux.height = index;
-                blockAux.hash = SHA256(JSON.stringify(blockAux)).toString();
-                
-                if (this.blocks.length > 0) {
-                    let previousBlock = this.blocks[this.blocks.length - 1];
-                    blockAux.previousBlockHash = previousBlock.hash;
-                }
-                this.blocks.push(blockAux);
+    getAverageTransferAmount() {
+        this.app.get("/token/:token/medianTransferAmount", (req, res) => {
+            let token = req.params.token;
+            if (!token || token == "") { //TODO: validate token exists
+                res.status(404).json({
+                    "error" : {    
+                        "status": 404,
+                        "message": "Token not found."   
+                    }
+                });
+            } else {
+                res.status(200).send(this.tokens[token].getAverageTxAmount().toString());
             }
-        }
+        });
     }
+    /*
+        
+        TODO: add endpoints for the following:
+        /token/medianTransferAmount
+        tokenId
+        the median token transfer amount
 
-}
+        /token/highestBalance
+        tokenId, time
+        the account with the highest balance of a token at a given time
+
+        /token/mostTransactions
+        tokenId, time
+        the account whose made the most transfers of a token at a given time
+        TODO: what is meant by given time?
+    */
+} 
 
 module.exports = (app) => { return new Controller(app);}
