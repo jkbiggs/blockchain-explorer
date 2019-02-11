@@ -12,13 +12,14 @@ class Controller {
 
     constructor(app) {
         this.app = app;
-        this.addresses = [];  //associative array of addresses with tokens
-        this.tokens = [];
+        this.addresses = {};  //associative array of addresses with tokens
+        this.tokens = {};
         this.processDataFile();
         this.getTokenBalance();
         this.getAverageTransferAmount();
         this.getMedianTransferAmount();
         this.getHighestBalance();
+        this.getMostTransactions();
     }
     // TODO: break out all logic?
     processDataFile() {
@@ -159,32 +160,63 @@ class Controller {
 
     // get the address of the account with the highest balance of a given token at a given time
     getAccountHighestBalance(token, time) {
-        let highestAccount = "";
+        let account = "";
         let highestBalance = 0;
-        console.log("getAccountHighestBalance:");
+        let count = 0;
         
-        /*this.addresses.forEach(a => {
-            console.log(a);
-            console.log("we in here");
-            let tokens = a.getTokens();
-            console.log("getHighestBalance: tokens() : " + tokens)
+        Object.keys(this.addresses).forEach(key => {
+            count++;
+            let address = this.addresses[key];
+            let tokens = address.getTokens();
             if (tokens.includes(token)) {
-                let tempBalance = a.getBalanceByTimestamp(token, time);
+                let tempBalance = address.getBalanceByTimestamp(token, time);
                 if (tempBalance > highestBalance) {
-                    highestAccount = a;
+                    account = key;
                     highestBalance = tempBalance;
                 }
             }
-        });*/
-        return highestAccount;
+        });
+        return account;
     }
 
-    /*
-        /token/mostTransactions
-        tokenId, time
-        the account whose made the most transfers of a token at a given time
- 
-    */
+   /**
+     * GET Endpoint to get the account with the most transfers of a token at a given time
+     * url: "/token/{tokenId}/mostTransactions/{time}
+     */
+    getMostTransactions() {
+        this.app.get("/token/:tokenId/mostTransactions/:time", (req, res) => {
+            let token = req.params.tokenId;
+            let time = req.params.time;
+            if (!token || token == "" || !this.tokens[token]) {
+                res.status(404).json({
+                    "error": {
+                        "status": 404,
+                        "message": "Token not found."
+                    }
+                });
+            } else {
+                let mostTransactions = this.getAccountMostTransactions(token, time);
+                res.status(200).send(mostTransactions.toString());
+            }
+        });
+    }
+
+    // get the address of the account with the most transfers of a given token at a given time
+    getAccountMostTransactions(token, time) {
+        let account = "";
+        let mostTx = 0;
+        
+        Object.keys(this.addresses).forEach(key => {
+            let address = this.addresses[key];
+            let txs = address.getTransactionsByTokenId(token);
+
+            if (txs.length > mostTx) {
+                account = key;
+                mostTx = txs.length;
+            }
+        });
+        return account;
+    }
 }
 
 module.exports = (app) => { return new Controller(app); }
