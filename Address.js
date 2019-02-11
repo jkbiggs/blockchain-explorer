@@ -4,24 +4,17 @@ class Address {
 		this.transactions = []; // list of transactions
 	}
 
-	getBalance(tokenId) {
-		// traverse though transactions adding up all tx.amounts for a tokenId
-		let amount = 0;
-		this.transactions.forEach(tx => {
-			if (tx.token == tokenId) {
-				amount += parseInt(tx.amount); //TODO: need BigInt?
-			}
-		});
-		
-		return amount;
-	}
-
+	/*
+		Gets the balance of the token for all transactions up to the timeStamp.
+		If the timeStamp is -1, returns most update to date balance
+	*/
 	getBalanceByTimestamp(tokenId, timeStamp) {
-		// this would be faster with a sorted array, but maintenance could be a pain
 		// traverse though transactions adding up all tx.amounts for a tokenId
+		// NOTE: this would be faster with a sorted array, but maintenance could be a pain
 		let amount = 0;
+		let all = timeStamp == -1 ? true : false;
 		this.transactions.forEach(tx => {
-			if (tx.token == tokenId && parseInt(tx.time) <= timeStamp) {
+			if (tx.token == tokenId && (parseInt(tx.time) <= timeStamp || all)) {
 				amount += parseInt(tx.amount); //TODO: need BigInt?
 			}
 		});

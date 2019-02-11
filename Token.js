@@ -32,11 +32,9 @@ class Token {
 
     getTxAmounts() {
         let txAmounts = [];
-        
-		this.transactions.forEach(tx => txAmounts.push(tx.amount));
-        console.log(txAmounts);
+        this.transactions.forEach(tx => txAmounts.push(tx.amount));
 		return txAmounts;
-	}
+    }
 }
 
 module.exports.Token = Token;

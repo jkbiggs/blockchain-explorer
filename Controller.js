@@ -5,8 +5,6 @@ const Token = TokenClass.Token;
 const TransactionClass = require('./Transaction.js');
 const Transaction = TransactionClass.Transaction;
 
-
-const db = require('./db/db');
 const fs = require('fs');
 
 
@@ -18,15 +16,15 @@ class Controller {
         this.tokens = [];
         this.processDataFile();
         this.getTokenBalance();
-        //this.getTokenAverage();
-        //this.getTokenMedian();
-        //this.getAccountHighestBalance();
-        //this.getAccountMostTransfers();
+        this.getAverageTransferAmount();
+        this.getMedianTransferAmount();
+        this.getHighestBalance();
     }
     // TODO: break out all logic?
     processDataFile() {
         // synchronously read data from data file
-        let data = fs.readFileSync('./db/testData.json');  
+        console.log("loading...");
+        let data = fs.readFileSync('./db/token_transfers.json');
         let logs = JSON.parse(data);
         let i = 0;
         logs.forEach(log => {
@@ -35,21 +33,21 @@ class Controller {
             let token = tx.token;
             let recipient = tx.recipient;
             let sender = tx.sender;
-            
+
             // 2. recipient address doesn't exist - create a new one and add tx
             if (!this.addresses[recipient]) {
                 this.addresses[recipient] = new Address(tx);
             }
-                
+
             this.addresses[recipient].addTransaction(tx);
-            
+
             // 3. if sender is isn't null, we need to add tx to sender too
             if (sender) {
-                if(!this.addresses[sender]) {
+                if (!this.addresses[sender]) {
                     this.addresses[sender] = new Address(tx);
                 }
                 this.addresses[sender].addTransaction(tx);
-            }  
+            }
             // 4. token doesn't exist - create a new one and add tx
             if (!this.tokens[token]) {
                 this.tokens[token] = new Token(tx);
@@ -58,46 +56,38 @@ class Controller {
             this.tokens[token].addTransaction(tx);
 
         });
-        
-        console.log(this.addresses);
-        console.log("address getTransactions: " + this.addresses['0x3cd3daa88db6d1ac2735edccdf7eb96cba9f9a48'].getTransactions());
-        console.log("getBalanceByTimestamp: " + this.addresses['0x3cd3daa88db6d1ac2735edccdf7eb96cba9f9a48'].getBalanceByTimestamp('0xd5524179cb7ae012f5b642c1d6d700bbaa76b96b', 1534373664));
-        
-        console.log(this.tokens);
-        console.log("getAverageTxAmount: " + this.tokens['0xd5524179cb7ae012f5b642c1d6d700bbaa76b96b'].getAverageTxAmount());
-        console.log("getMedianTxAmount: " +  this.tokens['0xd5524179cb7ae012f5b642c1d6d700bbaa76b96b'].getMedianTxAmount());
-        
+
+        console.log("loading Complete");
     }
 
     /**
      * GET Endpoint to get an account's token balance at a given time 
-     * url: "/address/{address}/token/{tokenId}/getTokenBalance"
-     * Request body should contain a token id and timeStamp
+     * url: "/address/{address}/token/{tokenId}/balance/{time}"
      */
     getTokenBalance() {
-        this.app.get("/address/:address/token/:tokenId/tokenBalance", (req, res) => {
+        this.app.get("/address/:address/token/:tokenId/balance/:time", (req, res) => {
             let address = req.params.address;
-            let token = req.params.token;
-            let time = req.params.timestamp;
+            let token = req.params.tokenId;
+            let time = req.params.time;
             if (!address || address == "" || !this.addresses[address]) {
                 res.status(404).json({
-                    "error" : {    
+                    "error": {
                         "status": 404,
-                        "message": "Address not found."   
+                        "message": "Address not found."
                     }
                 });
-            } else if (!token || token == "") { //TODO: validate token exists
+            } else if (!token || token == "" || !this.tokens[token]) {
                 res.status(404).json({
-                    "error" : {    
+                    "error": {
                         "status": 404,
-                        "message": "Token not found."   
+                        "message": "Token not found."
                     }
                 });
             } else if (!time || time == "") {
                 res.status(404).json({
-                    "error" : {    
+                    "error": {
                         "status": 404,
-                        "message": "Time not found."   
+                        "message": "Time not found."
                     }
                 });
             } else {
@@ -109,16 +99,15 @@ class Controller {
     /**
      * GET Endpoint to get the average transfer amount for a token 
      * url: "/token/{tokenId}/averageTransferAmount"
-     * Request body should contain a token id and timeStamp
      */
     getAverageTransferAmount() {
-        this.app.get("/token/:token/averageTransferAmount", (req, res) => {
-            let token = req.params.token;
-            if (!token || token == "") { //TODO: validate token exists
+        this.app.get("/token/:tokenId/averageTransferAmount", (req, res) => {
+            let token = req.params.tokenId;
+            if (!token || token == "" || !this.tokens[token]) {
                 res.status(404).json({
-                    "error" : {    
+                    "error": {
                         "status": 404,
-                        "message": "Token not found."   
+                        "message": "Token not found."
                     }
                 });
             } else {
@@ -128,40 +117,74 @@ class Controller {
     }
     /**
      * GET Endpoint to get the median transfer amount for a token 
-     * url: "/token/{tokenId}/getAverageTransferAmount"
-     * Request body should contain a token id and timeStamp
+     * url: "/token/{tokenId}/medianTransferAmount"
      */
-    getAverageTransferAmount() {
-        this.app.get("/token/:token/medianTransferAmount", (req, res) => {
-            let token = req.params.token;
-            if (!token || token == "") { //TODO: validate token exists
+    getMedianTransferAmount() {
+        this.app.get("/token/:tokenId/medianTransferAmount", (req, res) => {
+            let token = req.params.tokenId;
+            if (!token || token == "" || !this.tokens[token]) {
                 res.status(404).json({
-                    "error" : {    
+                    "error": {
                         "status": 404,
-                        "message": "Token not found."   
+                        "message": "Token not found."
                     }
                 });
             } else {
-                res.status(200).send(this.tokens[token].getAverageTxAmount().toString());
+                res.status(200).send(this.tokens[token].getMedianTxAmount().toString());
             }
         });
     }
-    /*
+
+    /**
+     * GET Endpoint to get the account with the highest balance of a token at a given time
+     * url: "/token/{tokenId}/highestBalance/{time}
+     */
+    getHighestBalance() {
+        this.app.get("/token/:tokenId/highestBalance/:time", (req, res) => {
+            let token = req.params.tokenId;
+            let time = req.params.time;
+            if (!token || token == "" || !this.tokens[token]) {
+                res.status(404).json({
+                    "error": {
+                        "status": 404,
+                        "message": "Token not found."
+                    }
+                });
+            } else {
+                let highestBalance = this.getAccountHighestBalance(token, time);
+                res.status(200).send(highestBalance.toString());
+            }
+        });
+    }
+
+    // get the address of the account with the highest balance of a given token at a given time
+    getAccountHighestBalance(token, time) {
+        let highestAccount = "";
+        let highestBalance = 0;
+        console.log("getAccountHighestBalance:");
         
-        TODO: add endpoints for the following:
-        /token/medianTransferAmount
-        tokenId
-        the median token transfer amount
+        /*this.addresses.forEach(a => {
+            console.log(a);
+            console.log("we in here");
+            let tokens = a.getTokens();
+            console.log("getHighestBalance: tokens() : " + tokens)
+            if (tokens.includes(token)) {
+                let tempBalance = a.getBalanceByTimestamp(token, time);
+                if (tempBalance > highestBalance) {
+                    highestAccount = a;
+                    highestBalance = tempBalance;
+                }
+            }
+        });*/
+        return highestAccount;
+    }
 
-        /token/highestBalance
-        tokenId, time
-        the account with the highest balance of a token at a given time
-
+    /*
         /token/mostTransactions
         tokenId, time
         the account whose made the most transfers of a token at a given time
-        TODO: what is meant by given time?
+ 
     */
-} 
+}
 
-module.exports = (app) => { return new Controller(app);}
+module.exports = (app) => { return new Controller(app); }
