@@ -28,7 +28,7 @@ class Controller {
         //let data = fs.readFileSync('./db/testData.json');
         let data = fs.readFileSync('./db/token_transfers.json');
         let logs = JSON.parse(data);
-        let i = 0;
+        let count = 0;
         logs.forEach(log => {
             // 1. create a Transaction from the log record
             let tx = new Transaction(log);
@@ -56,10 +56,10 @@ class Controller {
             }
 
             this.tokens[token].addTransaction(tx);
-            i++;
+            count++;
         });
         console.log("Loading Complete");
-        console.log("Total logs loaded: " + i);
+        console.log("Total logs loaded: " + count);
     }
 
     /**
