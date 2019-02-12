@@ -12,8 +12,8 @@ class Controller {
 
     constructor(app) {
         this.app = app;
-        this.addresses = {};  // associative array of addresses with transactions
-        this.tokens = {};     // associative array of tokens with transactions
+        this.addresses = {};  // using this object like an associated array of addresses with transactions
+        this.tokens = {};     // same as above for tokens with transactions
         this.processDataFile();
         this.getTokenBalance();
         this.getAverageTransferAmount();
@@ -50,6 +50,7 @@ class Controller {
                 }
                 this.addresses[sender].addTransaction(tx);
             }
+            
             // 4. token doesn't exist - create a new one and add tx
             if (!this.tokens[token]) {
                 this.tokens[token] = new Token(tx);

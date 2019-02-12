@@ -10,12 +10,11 @@ class Address {
 	*/
 	getBalanceByTimestamp(tokenId, timeStamp) {
 		// traverse though transactions adding up all tx.amounts for a tokenId
-		// NOTE: this would be faster with a sorted array, but maintenance could be a pain
 		let amount = 0;
 		let all = timeStamp == -1 ? true : false;
 		this.transactions.forEach(tx => {
 			if (tx.token == tokenId && (parseInt(tx.time) <= timeStamp || all)) {
-				amount += parseInt(tx.amount); //TODO: need BigInt?
+				amount += parseInt(tx.amount); //TODO: use BigInt?
 			}
 		});
 		
