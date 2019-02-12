@@ -12,8 +12,8 @@ class Controller {
 
     constructor(app) {
         this.app = app;
-        this.addresses = {};  //associative array of addresses with tokens
-        this.tokens = {};
+        this.addresses = {};  // associative array of addresses with transactions
+        this.tokens = {};     // associative array of tokens with transactions
         this.processDataFile();
         this.getTokenBalance();
         this.getAverageTransferAmount();
@@ -24,7 +24,8 @@ class Controller {
     // TODO: break out all logic?
     processDataFile() {
         // synchronously read data from data file
-        console.log("loading...");
+        console.log("Loading...");
+        //let data = fs.readFileSync('./db/testData.json');
         let data = fs.readFileSync('./db/token_transfers.json');
         let logs = JSON.parse(data);
         let i = 0;
@@ -55,10 +56,10 @@ class Controller {
             }
 
             this.tokens[token].addTransaction(tx);
-
+            i++;
         });
-
-        console.log("loading Complete");
+        console.log("Loading Complete");
+        console.log("Total logs loaded: " + i);
     }
 
     /**
@@ -162,10 +163,8 @@ class Controller {
     getAccountHighestBalance(token, time) {
         let account = "";
         let highestBalance = 0;
-        let count = 0;
         
         Object.keys(this.addresses).forEach(key => {
-            count++;
             let address = this.addresses[key];
             let tokens = address.getTokens();
             if (tokens.includes(token)) {

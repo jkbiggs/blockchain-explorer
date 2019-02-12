@@ -1,23 +1,16 @@
 const express = require("express");
-const bodyParser = require("body-parser");
 
-class BlockAPI {
+class BlockExplorerAPI {
 
     constructor() {
 		this.app = express();
 		this.initExpress();
-		this.initExpressMiddleWare();
 		this.initControllers();
 		this.start();
 	}
 
 	initExpress() {
 		this.app.set("port", 5000);
-	}
-
-	initExpressMiddleWare() {
-		this.app.use(bodyParser.urlencoded({extended:true}));
-		this.app.use(bodyParser.json());
 	}
 
 	initControllers() {
@@ -32,4 +25,4 @@ class BlockAPI {
 	}
 }
 
-new BlockAPI();
+new BlockExplorerAPI();
